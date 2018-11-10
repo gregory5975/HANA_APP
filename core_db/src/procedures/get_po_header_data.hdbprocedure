@@ -1,0 +1,22 @@
+PROCEDURE "get_po_header_data" ( )
+   LANGUAGE SQLSCRIPT
+   SQL SECURITY INVOKER
+   --DEFAULT SCHEMA <default_schema_name>
+   READS SQL DATA AS
+BEGIN
+   /*************************************
+       Write your procedure logic 
+   *************************************/
+   
+   select count(*) as CREATE_CNT, "HISTORY.CREATEDBY.EMPLOYEEID"
+		from "PO.Header" where PURCHASEORDERID in (
+						select PURCHASEORDERID
+							from "PO.Item" where "PRODUCT.PRODUCTID" is not null)
+	group by "HISTORY.CREATEDBY.EMPLOYEEID";
+	
+   select count(*) as CHANGE_CNT, "HISTORY.CHANGEDBY.EMPLOYEEID"
+		from "PO.Header" where PURCHASEORDERID in (
+						select PURCHASEORDERID
+							from "PO.Item" where "PRODUCT.PRODUCTID" is not null)
+	group by "HISTORY.CHANGEDBY.EMPLOYEEID";
+END
