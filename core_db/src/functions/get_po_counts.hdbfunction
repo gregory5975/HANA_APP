@@ -1,0 +1,39 @@
+FUNCTION "get_po_counts" ( im_fdate DATE )
+       RETURNS TABLE (
+    	EMPLOYEEID NVARCHAR(10),
+    	FULLNAME NVARCHAR(256),
+    	CREATE_CNT INTEGER,
+    	CHANGE_CNT INTEGER,
+		COMBINED_CNT INTEGER )
+       LANGUAGE SQLSCRIPT 
+       SQL SECURITY INVOKER AS 
+BEGIN 
+/*****************************  
+       Write your function logic 
+ *****************************/ 
+	po_create_cnt = select count(*) as CREATE_CNT, "HISTORY.CREATEDBY.EMPLOYEEID" AS EID
+		from "PO.Header" where PURCHASEORDERID in (
+						select PURCHASEORDERID
+							from "PO.Item" where "PRODUCT.PRODUCTID" is not null) 
+											 AND MONTH("HISTORY.CREATEDAT") = MONTH(:im_fdate)
+		group by "HISTORY.CREATEDBY.EMPLOYEEID";
+	
+	po_change_cnt = select count(*) as CHANGE_CNT, "HISTORY.CHANGEDBY.EMPLOYEEID" AS EID
+		from "PO.Header" where PURCHASEORDERID in (
+						select PURCHASEORDERID
+							from "PO.Item" where "PRODUCT.PRODUCTID" is not null)
+											AND MONTH("HISTORY.CREATEDAT") = MONTH(:im_fdate)
+		group by "HISTORY.CHANGEDBY.EMPLOYEEID";
+	
+	EMP_PO_COMBINED_CNT = SELECT		EMPLOYEEID,
+										"get_full_name"("NAME.FIRST", "NAME.MIDDLE", "NAME.LAST") as FULLNAME, 
+										crcnt.CREATE_CNT, chcnt.CHANGE_CNT,
+										crcnt.CREATE_CNT + chcnt.CHANGE_CNT AS COMBINED_CNT
+										FROM "MD.Employees" AS emp
+										LEFT OUTER JOIN :PO_CREATE_CNT AS crcnt
+											ON emp.EMPLOYEEID = crcnt.EID
+										LEFT OUTER JOIN :PO_CHANGE_CNT AS chcnt
+											ON emp.EMPLOYEEID = chcnt.EID
+										ORDER BY COMBINED_CNT DESC;
+	return select * from :EMP_PO_COMBINED_CNT;
+END;
